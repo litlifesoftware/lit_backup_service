@@ -1,7 +1,8 @@
 name: lit_backup_service
-description: A new Flutter package project.
+description: >-
+  A Flutter package to create and restore backups, whose content is formatted as a JSON files.
 version: 0.0.1
-homepage:
+homepage: https://github.com/litlifesoftware/lit_backup_service
 
 environment:
   sdk: ">=2.12.0 <3.0.0"
@@ -10,10 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  path_provider: ^2.0.2
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
