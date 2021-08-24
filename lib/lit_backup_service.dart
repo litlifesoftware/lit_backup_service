@@ -18,3 +18,4 @@ library lit_backup_service;
 
 export 'model/models.dart';
 export 'controller/controllers.dart';
+export 'data/data.dart';
