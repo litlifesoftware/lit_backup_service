@@ -2,3 +2,4 @@
 library data;
 
 export 'android_media_locations.dart';
+export 'file_extensions.dart';
