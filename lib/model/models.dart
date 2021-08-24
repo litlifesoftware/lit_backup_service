@@ -2,3 +2,4 @@
 library models;
 
 export 'backup_model.dart';
+export 'media_location.dart';
