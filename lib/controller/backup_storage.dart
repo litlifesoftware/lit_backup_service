@@ -1,92 +1,121 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:lit_backup_service/model/backup_model.dart';
+import 'package:lit_backup_service/data/data.dart';
 import 'package:lit_backup_service/model/models.dart';
-import 'package:path_provider/path_provider.dart';
 
+/// A `controller` class handling read and write operations of backups to
+/// local storage.
+///
+/// Backups are preferably stored on the device's Media directories
+/// ([MediaLocation]). The [organizationName] will be a directory in the Media
+/// directory, 	whereas the [applicationName] will be a subdirectory (inside the
+/// [organizationName] directory). This will help the user to organize different
+/// backups of different applications.
+///
+/// A `organizationName` of `MyOrganization`,  a `applicationName` of `MyApp`
+/// and a `fileName` of `examplebackup` on the `Documents` media directory would
+/// compound a complete path of
+/// `/storage/emulated/0/Documents/MyOrganization/MyApp/examplebackup.json`.
+///
 class BackupStorage {
-  final String directoryName;
-  final String subdirectoryName;
+  /// The application's creator.
+  final String organizationName;
+
+  /// The application's name.
+  final String applicationName;
+
+  /// The file's name. The file's extentions will not required to be added, as
+  /// all backup files ẁill have the `json` extension exclusively.
   final String fileName;
 
+  /// The [MediaLocation] to store the backup in.
+  final MediaLocation mediaLocation;
+
+  /// Creates a [BackupStorage].
   const BackupStorage({
-    required this.directoryName,
-    required this.subdirectoryName,
+    required this.organizationName,
+    required this.applicationName,
     required this.fileName,
+    this.mediaLocation = DOCUMENTS_LOCATION_ANDROID,
   });
 
   static const String _unimplementedErrorMessage =
       "Unimplemented platform: Could not locate suitable backup location." +
           " " +
-          "Please consider that `LitBackupStorage` is only supported on Android devices.";
+          "Please consider that `LitBackupStorage` is only supported on" +
+          " " +
+          "Android devices.";
 
-  Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-
-    return directory.path;
-  }
-
+  /// Retrieves the currently selected `Media` directory on the local device's
+  /// file system.
+  ///
+  /// Throws an `Exception` if the current device does not run on `Android`.
   Future<String> get currentMediaPath async {
-    return await _documentsPath;
+    return await _mediaLocation;
   }
 
-  Future<String> get _documentsPath async {
+  /// Checks the supported platform and either throws an `Exception` of the
+  /// devices's media location.
+  Future<String> get _mediaLocation async {
     if (Platform.isAndroid) {
-      return "/storage/emulated/0/Documents/";
+      return mediaLocation.path;
     }
-    if (Platform.isMacOS) {
-      try {
-        final directory = await getDownloadsDirectory();
-        return directory!.path;
-      } catch (e) {
-        throw Exception(
-          _unimplementedErrorMessage,
-        );
-      }
-    }
+
     print(_unimplementedErrorMessage);
     throw Exception();
   }
 
+  /// Creates all directories required to store and retrieve backup files.
   void _createStorageDir(String path) async {
-    Directory('$path/$directoryName').create();
-    Directory('$path/$directoryName/$subdirectoryName').create();
+    Directory('$path/$organizationName').create();
+    Directory('$path/$organizationName/$applicationName').create();
   }
 
+  /// Creates the backup file.
   Future<File> get _localFile async {
-    final mediaPath = await _documentsPath;
+    final mediaPath = await _mediaLocation;
     _createStorageDir(mediaPath);
-    final path = "$mediaPath$directoryName/$subdirectoryName";
-    return File('$path/$fileName.json');
+    final path = "$mediaPath$organizationName/$applicationName";
+    return File('$path/$fileName.$EXTENSION_JSON');
   }
 
-  Future<BackupModel?> readBackup(
-      {required BackupModel Function(String) decode}) async {
+  /// Reads the backup from the selected location.
+  ///
+  /// Returns `null` if the backup has not been found or could not be
+  /// serialized.
+  Future<BackupModel?> readBackup({
+    /// The serialization logic.
+    ///
+    /// The logic will vary from Model class to Model class and must be
+    /// provided on each read-request.
+    required BackupModel Function(String) decode,
+  }) async {
     final file = await _localFile;
-    print("Reading from file on ${file.path}");
+    print("Reading Backup on ${file.path}");
     try {
       // Read the file
       final contents = await file.readAsString();
 
       return decode(contents);
     } catch (e) {
-      print("ERROR: File on ${file.path} not found!");
+      print("ERROR: Backup on ${file.path} not found!");
       return null;
     }
   }
 
+  /// Creates a backup file based on the provided `BackupModel`'s content.
   Future<File> writeBackup(BackupModel backup) async {
-    final file = await _localFile;
-    print("Writing to file on ${file.path}");
+    final File file = await _localFile;
+    print("Writing Backup content to file on ${file.path}");
 
-    final map = backup.toJson();
+    // Serialize to a `Map` object on the model itself.
+    final Map<String, dynamic> map = backup.toJson();
 
-    final json = jsonEncode(map);
+    // The encoded `JSON` content
+    final String json = jsonEncode(map);
 
-    //final stringifiedJson = map.toString();
-
-    // Write the file
+    // Write the content to the file
     return file.writeAsString(json);
   }
 }
