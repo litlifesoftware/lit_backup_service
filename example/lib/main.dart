@@ -1,4 +1,36 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:lit_backup_service/lit_backup_service.dart';
+
+class ExampleBackup implements BackupModel {
+  final String name;
+  final String quote;
+  final String backupDate;
+
+  const ExampleBackup({
+    required this.name,
+    required this.quote,
+    required this.backupDate,
+  });
+
+  factory ExampleBackup.fromJson(Map<String, dynamic> json) {
+    return ExampleBackup(
+      name: json['name'] as String,
+      quote: json['quote'] as String,
+      backupDate: json['backupDate'] as String,
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'quote': quote,
+      'name': name,
+      'backupDate': backupDate,
+    };
+  }
+}
 
 void main() {
   runApp(MyApp());
@@ -9,105 +41,214 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-      ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'LitBackupService',
+      debugShowCheckedModeBanner: false,
+      home: HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class HomeScreen extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomeScreenState extends State<HomeScreen> {
+  TextEditingController _nameInput = TextEditingController(text: '');
+  TextEditingController _quoteInput =
+      TextEditingController(text: 'If you want to be happy, be.');
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  ExampleBackup get exampleBackup {
+    return ExampleBackup(
+      name: _nameInput.text,
+      quote: _quoteInput.text,
+      backupDate: DateTime.now().toIso8601String(),
+    );
+  }
+
+  final BackupStorage backupStorage = BackupStorage(
+    organizationName: "MyOrganization",
+    applicationName: "LitBackupService",
+    fileName: "examplebackup",
+  );
+
+  // Write the variable as a string to the file.
+  Future<void> _writeBackup(ExampleBackup backup) async {
+    setState(
+      () => {
+        backupStorage.writeBackup(backup),
+      },
+    );
+  }
+
+  Future<BackupModel?> _readBackup() {
+    return backupStorage.readBackup(
+      decode: (contents) => ExampleBackup.fromJson(
+        jsonDecode(contents),
+      ),
+    );
+  }
+
+  String formatAsLocalizedDate(BuildContext context, DateTime date) {
+    final TimeOfDay timeOfDay = TimeOfDay.fromDateTime(date);
+    final String dateFormat =
+        MaterialLocalizations.of(context).formatShortDate(date);
+    final String timeFormat = MaterialLocalizations.of(context).formatTimeOfDay(
+      timeOfDay,
+    );
+    return "$dateFormat $timeFormat";
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        centerTitle: true,
+        backgroundColor: Colors.black,
+        title: Text("LitBackupService"),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
+      body: SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 40.0,
+              horizontal: 16.0,
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+            child: Column(
+              children: [
+                _InputField(
+                  title: "Your name",
+                  controller: _nameInput,
+                ),
+                _InputField(
+                  title: "Your quote",
+                  controller: _quoteInput,
+                ),
+                ElevatedButton(
+                  onPressed: () => _writeBackup(exampleBackup),
+                  child: Text("backup now"),
+                ),
+                _BackupPreviewBuilder(
+                  backupStorage: backupStorage,
+                  formatAsLocalizedDate: formatAsLocalizedDate,
+                  readBackup: _readBackup(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class _BackupPreviewBuilder extends StatelessWidget {
+  final BackupStorage backupStorage;
+  final String Function(BuildContext context, DateTime datetime)
+      formatAsLocalizedDate;
+  final Future<BackupModel?> readBackup;
+  const _BackupPreviewBuilder({
+    Key? key,
+    required this.backupStorage,
+    required this.formatAsLocalizedDate,
+    required this.readBackup,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: readBackup,
+      builder: (context, AsyncSnapshot<BackupModel?> snap) {
+        if (snap.connectionState == ConnectionState.done) {
+          if (snap.hasData) {
+            ExampleBackup? exampleBackup = snap.data as ExampleBackup;
+            return snap.data != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Backup of ${exampleBackup.name}",
+                      ),
+                      Text(
+                        "Quote: ${exampleBackup.quote}",
+                      ),
+                      Text(
+                        "Last backup:" +
+                            " " +
+                            formatAsLocalizedDate(
+                              context,
+                              DateTime.parse(exampleBackup.backupDate),
+                            ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 30.0,
+                        ),
+                        child: Text(
+                          "You will find your JSON file on your" +
+                              " " +
+                              "selected Media directory of your" +
+                              " " +
+                              "local device.",
+                        ),
+                      ),
+                      FutureBuilder(
+                        future: backupStorage.currentMediaPath,
+                        builder: (context, AsyncSnapshot<String> snap) {
+                          return snap.data != null
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15.0,
+                                  ),
+                                  child: Text(
+                                    "Current media directory:\n" + snap.data!,
+                                  ),
+                                )
+                              : SizedBox();
+                        },
+                      )
+                    ],
+                  )
+                : Text("No backup found!");
+          }
+
+          if (snap.hasError) return Text("Error");
+        } else if (snap.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        }
+        return Text("No backup found!");
+      },
+    );
+  }
+}
+
+class _InputField extends StatelessWidget {
+  final String title;
+  final TextEditingController controller;
+  const _InputField({
+    Key? key,
+    required this.title,
+    required this.controller,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 8.0,
+      ),
+      child: Column(
+        children: [
+          Text(title),
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Enter your $title...',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
