@@ -89,6 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _deleteBackup() async {
+    setState(
+      () => {
+        backupStorage.deleteBackup(),
+      },
+    );
+  }
+
   String formatAsLocalizedDate(BuildContext context, DateTime date) {
     final TimeOfDay timeOfDay = TimeOfDay.fromDateTime(date);
     final String dateFormat =
@@ -132,6 +140,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   backupStorage: backupStorage,
                   formatAsLocalizedDate: formatAsLocalizedDate,
                   readBackup: _readBackup(),
+                ),
+                ElevatedButton(
+                  onPressed: _deleteBackup,
+                  child: Text("delete backup"),
                 ),
               ],
             ),

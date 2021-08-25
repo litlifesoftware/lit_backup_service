@@ -47,6 +47,8 @@ class BackupStorage {
           " " +
           "Android devices.";
 
+  static const String _notFoundErrorMessage = "ERROR: Backup not found!";
+
   /// Retrieves the currently selected `Media` directory on the local device's
   /// file system.
   ///
@@ -91,15 +93,15 @@ class BackupStorage {
     /// provided on each read-request.
     required BackupModel Function(String) decode,
   }) async {
-    final file = await _localFile;
-    print("Reading Backup on ${file.path}");
+    print("Reading Backup...");
     try {
+      final file = await _localFile;
       // Read the file
       final contents = await file.readAsString();
-
+      print("Backup found on on ${file.path}");
       return decode(contents);
     } catch (e) {
-      print("ERROR: Backup on ${file.path} not found!");
+      print(_notFoundErrorMessage);
       return null;
     }
   }
@@ -117,5 +119,17 @@ class BackupStorage {
 
     // Write the content to the file
     return file.writeAsString(json);
+  }
+
+  /// Deletes the existing backup file.
+  Future<void> deleteBackup() async {
+    try {
+      final file = await _localFile;
+      await file.delete();
+      print("Backup deleted.");
+    } catch (e) {
+      print(_notFoundErrorMessage);
+      return;
+    }
   }
 }
