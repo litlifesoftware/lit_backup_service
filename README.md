@@ -65,13 +65,6 @@ To get a better understanding for implementing the LitBackupService, we recommen
 to take a look at the example app provided in the `example` folder. Feel free to
 experiment with the app.
 
-## Dependencies
-
-LitBackupService uses the following Dart dependencies in order to implement certain
-features and functionality:
-
-- [path_provider](https://pub.dev/packages/path_provider) - [License](https://github.com/flutter/plugins/blob/master/LICENSE) (Used to locate directory paths on the device)
-
 ## Credits
 
 LitBackupService is made possible thanks to the Flutter Project.
