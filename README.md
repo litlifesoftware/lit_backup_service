@@ -30,9 +30,10 @@ This package is currently only supported on Android devices.
 
 ## Required Permissions on Android
 
-In order to read and write beyond the assigned application path, there will be more
-permissions required (external storage). These must be enabled on the `AndroidManifest.xml`
-of your app located on `android/app/src/main`.
+In order to read and write outside the app-specific directories, additional
+permissions will be required. These must be enabled on the `AndroidManifest.xml`
+of your app located on `android/app/src/main`. More recent releases of `Android`
+are managing storage permissions on the [file's purpose](https://developer.android.com/training/data-storage#permissions) and therefore have no effect applied.
 
 ```xml
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -42,8 +43,8 @@ of your app located on `android/app/src/main`.
 ## Backup location
 
 Backups are stored on the device's Media directories by default. But custom file
-paths are supported. The Media directories will include the Documents folder 
-(default) on `/storage/emulated/0/Documents/` or the Download folder on 
+paths are supported. The Media directories will include the Documents folder
+(default) on `/storage/emulated/0/Documents/` or the Download folder on
 `/storage/emulated/0/Download/`. It is recommended to select the Documents folder
 as backup location because the content inside the `Download` folder is likely to be
 deleted accidentally by the user or even by some clean-up apps running on the local device.
