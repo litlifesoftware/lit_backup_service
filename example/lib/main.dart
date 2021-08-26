@@ -97,6 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _requestPermissions() async {
+    backupStorage.requestPermissions().then((value) => setState(() {}));
+  }
+
   String formatAsLocalizedDate(BuildContext context, DateTime date) {
     final TimeOfDay timeOfDay = TimeOfDay.fromDateTime(date);
     final String dateFormat =
@@ -140,10 +144,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   backupStorage: backupStorage,
                   formatAsLocalizedDate: formatAsLocalizedDate,
                   readBackup: _readBackup(),
+                  requestPermissions: _requestPermissions,
                 ),
-                ElevatedButton(
-                  onPressed: _deleteBackup,
-                  child: Text("delete backup"),
+                FutureBuilder(
+                  future: backupStorage.hasPermissions(),
+                  builder: (context, AsyncSnapshot<bool> hasPerSnap) {
+                    return hasPerSnap.hasData
+                        ? hasPerSnap.data!
+                            ? ElevatedButton(
+                                onPressed: _deleteBackup,
+                                child: Text("delete backup"),
+                              )
+                            : SizedBox()
+                        : SizedBox();
+                  },
                 ),
               ],
             ),
@@ -159,11 +173,13 @@ class _BackupPreviewBuilder extends StatelessWidget {
   final String Function(BuildContext context, DateTime datetime)
       formatAsLocalizedDate;
   final Future<BackupModel?> readBackup;
+  final void Function() requestPermissions;
   const _BackupPreviewBuilder({
     Key? key,
     required this.backupStorage,
     required this.formatAsLocalizedDate,
     required this.readBackup,
+    required this.requestPermissions,
   }) : super(key: key);
 
   @override
@@ -228,7 +244,20 @@ class _BackupPreviewBuilder extends StatelessWidget {
         } else if (snap.connectionState == ConnectionState.waiting) {
           return CircularProgressIndicator();
         }
-        return Text("No backup found!");
+        // Permission denied. Ask for permissions.
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text("Reading backup from storage denied."),
+            ),
+            ElevatedButton(
+              onPressed: requestPermissions,
+              child: Text("Request permissions"),
+            ),
+          ],
+        );
       },
     );
   }
