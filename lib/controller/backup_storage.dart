@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:lit_backup_service/data/data.dart';
 import 'package:lit_backup_service/model/models.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// A `controller` class handling read and write operations of backups to
 /// local storage.
@@ -25,8 +26,8 @@ class BackupStorage {
   /// The application's name.
   final String applicationName;
 
-  /// The file's name. The file's extentions will not required to be added, as
-  /// all backup files ẁill have the `json` extension exclusively.
+  /// The file's name. The file extention will not be required, because all
+  /// backup files ẁill have the `json` extension exclusively by default.
   final String fileName;
 
   /// The [MediaLocation] to store the backup in.
@@ -37,7 +38,7 @@ class BackupStorage {
     required this.organizationName,
     required this.applicationName,
     required this.fileName,
-    this.mediaLocation = DOCUMENTS_LOCATION_ANDROID,
+    this.mediaLocation = MediaLocation.DOWNLOAD_LOCATION_ANDROID,
   });
 
   static const String _unimplementedErrorMessage =
@@ -102,6 +103,7 @@ class BackupStorage {
       return decode(contents);
     } catch (e) {
       print(_notFoundErrorMessage);
+      print(e.toString());
       return null;
     }
   }
@@ -129,7 +131,37 @@ class BackupStorage {
       print("Backup deleted.");
     } catch (e) {
       print(_notFoundErrorMessage);
+      print(e.toString());
       return;
     }
+  }
+
+  /// Evaluates whether all required permissions have been granted.
+  ///
+  /// Returns `false` by default.
+  Future<bool> hasPermissions() async {
+    var statusStorage = await Permission.storage.status;
+
+    if (statusStorage.isGranted) return true;
+
+    var statusManageStorage = await Permission.manageExternalStorage.status;
+
+    if (statusManageStorage.isGranted) return true;
+
+    return false;
+  }
+
+  /// Request all required permissions to access the existing backup files
+  /// stored on the Media locations.
+  ///
+  Future<void> requestPermissions() async {
+    var statusStorage = await Permission.storage.status;
+
+    var statusManageStorage = await Permission.manageExternalStorage.status;
+
+    if (!statusStorage.isGranted) await Permission.storage.request();
+
+    if (!statusManageStorage.isGranted)
+      await Permission.manageExternalStorage.request();
   }
 }
