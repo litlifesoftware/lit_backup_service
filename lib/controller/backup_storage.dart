@@ -99,7 +99,7 @@ class BackupStorage {
       final file = await _localFile;
       // Read the file
       final contents = await file.readAsString();
-      print("Backup found on on ${file.path}");
+      print("Backup found on ${file.path}");
       return decode(contents);
     } catch (e) {
       print(_notFoundErrorMessage);
