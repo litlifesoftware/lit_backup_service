@@ -36,18 +36,29 @@ of your app located on `android/app/src/main`. More recent releases of `Android`
 are managing storage permissions on the [file's purpose](https://developer.android.com/training/data-storage#permissions) and therefore have no effect applied.
 
 ```xml
+// Android devices prior to Android 11
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+// Android devices from Android 11
+<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 ```
+
+In order to access already existing backup files (the currently running app won't be able to access them directly), these permissions must first be granted.
+This will be done using the `BackupStorage`'s `requestPermissions()` method,
+which uses the `permission_handler` package.
 
 ## Backup location
 
 Backups are stored on the device's Media directories by default. But custom file
 paths are supported. The Media directories will include the Documents folder
 (default) on `/storage/emulated/0/Documents/` or the Download folder on
-`/storage/emulated/0/Download/`. It is recommended to select the Documents folder
-as backup location because the content inside the `Download` folder is likely to be
-deleted accidentally by the user or even by some clean-up apps running on the local device.
+`/storage/emulated/0/Download/`. 
+
+We recommend to use the Documents folder
+as backup location if possible for better security.
+
+But for higher compatibility we recommend to use the `Download` folder, due
+to it being available on almost all Android devices.
 
 ## Getting Started
 
@@ -65,6 +76,13 @@ samples, guidance on mobile development, and a full API reference.
 To get a better understanding for implementing the LitBackupService, we recommend
 to take a look at the example app provided in the `example` folder. Feel free to
 experiment with the app.
+
+## Dependencies
+
+Leitmotif uses the following Dart dependencies in order to implement certain
+features and functionality:
+
+- [permission_handler](https://pub.dev/packages/permission_handler) - [License](https://github.com/Baseflow/flutter-permission-handler/blob/master/LICENSE) (Used to request storage access permissions)
 
 ## Credits
 

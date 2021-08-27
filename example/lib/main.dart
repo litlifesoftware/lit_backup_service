@@ -244,19 +244,30 @@ class _BackupPreviewBuilder extends StatelessWidget {
         } else if (snap.connectionState == ConnectionState.waiting) {
           return CircularProgressIndicator();
         }
-        // Permission denied. Ask for permissions.
+        // Permission denied or file not found.
 
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text("Reading backup from storage denied."),
-            ),
-            ElevatedButton(
-              onPressed: requestPermissions,
-              child: Text("Request permissions"),
-            ),
-          ],
+        return FutureBuilder(
+          future: backupStorage.hasPermissions(),
+          builder: (context, AsyncSnapshot<bool> hasPerSnap) {
+            return hasPerSnap.hasData
+                ? !hasPerSnap.data!
+                    ? Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text("Reading backup from storage denied."),
+                          ),
+                          ElevatedButton(
+                            onPressed: requestPermissions,
+                            child: Text("Request permissions"),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        "Backup not found!",
+                      )
+                : SizedBox();
+          },
         );
       },
     );
