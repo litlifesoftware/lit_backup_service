@@ -70,6 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
     organizationName: "MyOrganization",
     applicationName: "LitBackupService",
     fileName: "examplebackup",
+    // The installationID should be generated only once after the initial app
+    // startup and be stored on a persisten data storage (such as `SQLite`) to
+    // ensure the file name matches on each app startup.
+    installationID: DateTime.now().millisecondsSinceEpoch.toRadixString(16),
   );
 
   // Write the variable as a string to the file.
@@ -97,6 +101,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<BackupModel?> _readBackupFromPicker() {
+    return backupStorage.pickBackupFile(
+      decode: (contents) => ExampleBackup.fromJson(
+        jsonDecode(contents),
+      ),
+    );
+  }
+
   Future<void> _requestPermissions() async {
     backupStorage.requestPermissions().then((value) => setState(() {}));
   }
@@ -111,59 +123,151 @@ class _HomeScreenState extends State<HomeScreen> {
     return "$dateFormat $timeFormat";
   }
 
+  int currentIndex = 0;
+
+  bool _pressedPickFile = false;
+
+  @override
+  void dispose() {
+    _pressedPickFile = false;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: (selected) {
+          setState(() {
+            currentIndex = selected;
+            _pressedPickFile = false;
+          });
+        },
+        items: [
+          BottomNavigationBarItem(
+            label: "Restore",
+            icon: Icon(Icons.restore),
+          ),
+          BottomNavigationBarItem(
+            label: "Create",
+            icon: Icon(Icons.create),
+          ),
+        ],
+      ),
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.black,
         title: Text("LitBackupService"),
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 40.0,
-              horizontal: 16.0,
+      body: currentIndex == 0
+          ? Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 40.0,
+                    horizontal: 16.0,
+                  ),
+                  child: FutureBuilder(
+                      future: backupStorage.hasPermissions(),
+                      builder: (context, AsyncSnapshot<bool> hasPerSnap) {
+                        if (hasPerSnap.connectionState ==
+                                ConnectionState.done &&
+                            hasPerSnap.hasData) {
+                          return hasPerSnap.data!
+                              ? Column(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _pressedPickFile = !_pressedPickFile;
+                                        });
+                                      },
+                                      child: Text(_pressedPickFile
+                                          ? "CLEAR"
+                                          : "PICK BACKUP FILE"),
+                                    ),
+                                    _pressedPickFile
+                                        ? _BackupPreviewBuilder(
+                                            backupStorage: backupStorage,
+                                            formatAsLocalizedDate:
+                                                formatAsLocalizedDate,
+                                            readBackup: _readBackupFromPicker(),
+                                            requestPermissions:
+                                                _requestPermissions,
+                                          )
+                                        : SizedBox(),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8.0),
+                                      child: Text(
+                                          "Reading backup from storage denied."),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: _requestPermissions,
+                                      child: Text("Request permissions"),
+                                    ),
+                                  ],
+                                );
+                        }
+
+                        return CircularProgressIndicator();
+                      }),
+                ),
+              ),
+            )
+          : Scaffold(
+              body: SingleChildScrollView(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 40.0,
+                      horizontal: 16.0,
+                    ),
+                    child: Column(
+                      children: [
+                        _InputField(
+                          title: "Your name",
+                          controller: _nameInput,
+                        ),
+                        _InputField(
+                          title: "Your quote",
+                          controller: _quoteInput,
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _writeBackup(exampleBackup),
+                          child: Text("BACKUP NOW"),
+                        ),
+                        _BackupPreviewBuilder(
+                          backupStorage: backupStorage,
+                          formatAsLocalizedDate: formatAsLocalizedDate,
+                          readBackup: _readBackup(),
+                          requestPermissions: _requestPermissions,
+                          showMediaLocation: true,
+                        ),
+                        FutureBuilder(
+                          future: backupStorage.hasPermissions(),
+                          builder: (context, AsyncSnapshot<bool> hasPerSnap) {
+                            return hasPerSnap.hasData
+                                ? hasPerSnap.data!
+                                    ? ElevatedButton(
+                                        onPressed: _deleteBackup,
+                                        child: Text("DELETE BACKUP"),
+                                      )
+                                    : SizedBox()
+                                : SizedBox();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            child: Column(
-              children: [
-                _InputField(
-                  title: "Your name",
-                  controller: _nameInput,
-                ),
-                _InputField(
-                  title: "Your quote",
-                  controller: _quoteInput,
-                ),
-                ElevatedButton(
-                  onPressed: () => _writeBackup(exampleBackup),
-                  child: Text("backup now"),
-                ),
-                _BackupPreviewBuilder(
-                  backupStorage: backupStorage,
-                  formatAsLocalizedDate: formatAsLocalizedDate,
-                  readBackup: _readBackup(),
-                  requestPermissions: _requestPermissions,
-                ),
-                FutureBuilder(
-                  future: backupStorage.hasPermissions(),
-                  builder: (context, AsyncSnapshot<bool> hasPerSnap) {
-                    return hasPerSnap.hasData
-                        ? hasPerSnap.data!
-                            ? ElevatedButton(
-                                onPressed: _deleteBackup,
-                                child: Text("delete backup"),
-                              )
-                            : SizedBox()
-                        : SizedBox();
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -174,12 +278,14 @@ class _BackupPreviewBuilder extends StatelessWidget {
       formatAsLocalizedDate;
   final Future<BackupModel?> readBackup;
   final void Function() requestPermissions;
+  final bool showMediaLocation;
   const _BackupPreviewBuilder({
     Key? key,
     required this.backupStorage,
     required this.formatAsLocalizedDate,
     required this.readBackup,
     required this.requestPermissions,
+    this.showMediaLocation = false,
   }) : super(key: key);
 
   @override
@@ -220,21 +326,24 @@ class _BackupPreviewBuilder extends StatelessWidget {
                               "local device.",
                         ),
                       ),
-                      FutureBuilder(
-                        future: backupStorage.currentMediaPath,
-                        builder: (context, AsyncSnapshot<String> snap) {
-                          return snap.data != null
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 15.0,
-                                  ),
-                                  child: Text(
-                                    "Current media directory:\n" + snap.data!,
-                                  ),
-                                )
-                              : SizedBox();
-                        },
-                      )
+                      showMediaLocation
+                          ? FutureBuilder(
+                              future: backupStorage.currentMediaPath,
+                              builder: (context, AsyncSnapshot<String> snap) {
+                                return snap.data != null
+                                    ? Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 15.0,
+                                        ),
+                                        child: Text(
+                                          "Current media directory:\n" +
+                                              snap.data!,
+                                        ),
+                                      )
+                                    : SizedBox();
+                              },
+                            )
+                          : SizedBox()
                     ],
                   )
                 : Text("No backup found!");
