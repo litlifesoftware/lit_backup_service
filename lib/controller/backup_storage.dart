@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:lit_backup_service/data/data.dart';
 import 'package:lit_backup_service/model/models.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -33,12 +35,41 @@ class BackupStorage {
   /// The [MediaLocation] to store the backup in.
   final MediaLocation mediaLocation;
 
+  /// States whether to use the Android's `Manage External Storage` permission.
+  /// Requesting this permission will enable full access to all external storage
+  /// on Android 10 (API level 29) and higher.
+  /// This will enable the app access to all folders on the devices
+  /// and therefore will allow backups to be restored without the user having
+  /// to provide a specific backup document.
+  ///
+  /// This flag will be set to `false` by default because of security conserns
+  /// when using the `Manage External Storage` permission. More information:
+  /// https://support.google.com/googleplay/android-developer/answer/9214102#zippy=
+  final bool useManageExternalStoragePermission;
+
+  final String fileExtension;
+
+  /// The `installationID` is required in order to allow varying file names
+  /// when using the same app on different installations or on the different
+  /// devices. One `installationID` must not match the previous installation's
+  /// id in order to preserve the scoped file privilege enforced on Android
+  /// 10 or higher (API 29+).
+  ///
+  /// In order to keep each `installationID` bound to only on installation it
+  /// is recommended to create the id on the first startup of your app (clear
+  /// instance or restored instance). Store the `installationID` on the primary
+  /// database and update it every time the app has been re-installed.
+  final String installationID;
+
   /// Creates a [BackupStorage].
   const BackupStorage({
     required this.organizationName,
     required this.applicationName,
     required this.fileName,
     this.mediaLocation = MediaLocation.DOWNLOAD_LOCATION_ANDROID,
+    this.useManageExternalStoragePermission = false,
+    this.fileExtension = EXTENSION_JSON,
+    required this.installationID,
   });
 
   static const String _unimplementedErrorMessage =
@@ -48,7 +79,14 @@ class BackupStorage {
           " " +
           "Android devices.";
 
-  static const String _notFoundErrorMessage = "ERROR: Backup not found!";
+  static const String _ErrorMessage =
+      "ERROR: Backup not found or missing Permissions!" +
+          " " +
+          "Try to delete the previous backup file in order to create a updated" +
+          " " +
+          "backup.";
+
+  //String _currentFilePath = "";
 
   /// Retrieves the currently selected `Media` directory on the local device's
   /// file system.
@@ -80,7 +118,15 @@ class BackupStorage {
     final mediaPath = await _mediaLocation;
     _createStorageDir(mediaPath);
     final path = "$mediaPath$organizationName/$applicationName";
-    return File('$path/$fileName.$EXTENSION_JSON');
+    return File('$path/$fileName-$installationID.$fileExtension');
+  }
+
+  /// Creates the backup file.
+  Future<File> _createLocalFile(String cachedPath) async {
+    //final mediaPath = await _mediaLocation;
+    //_createStorageDir(mediaPath);
+    //final path = "$mediaPath$organizationName/$applicationName";
+    return File(cachedPath);
   }
 
   /// Reads the backup from the selected location.
@@ -102,7 +148,7 @@ class BackupStorage {
       print("Backup found on ${file.path}");
       return decode(contents);
     } catch (e) {
-      print(_notFoundErrorMessage);
+      print(_ErrorMessage);
       print(e.toString());
       return null;
     }
@@ -130,7 +176,7 @@ class BackupStorage {
       await file.delete();
       print("Backup deleted.");
     } catch (e) {
-      print(_notFoundErrorMessage);
+      print(_ErrorMessage);
       print(e.toString());
       return;
     }
@@ -141,12 +187,13 @@ class BackupStorage {
   /// Returns `false` by default.
   Future<bool> hasPermissions() async {
     var statusStorage = await Permission.storage.status;
-
-    if (statusStorage.isGranted) return true;
-
     var statusManageStorage = await Permission.manageExternalStorage.status;
 
-    if (statusManageStorage.isGranted) return true;
+    if (useManageExternalStoragePermission) {
+      if (statusStorage.isGranted && statusManageStorage.isGranted) return true;
+    } else {
+      if (statusStorage.isGranted) return true;
+    }
 
     return false;
   }
@@ -155,13 +202,83 @@ class BackupStorage {
   /// stored on the Media locations.
   ///
   Future<void> requestPermissions() async {
+    // Mandatory `EXTERNAL STORAGE` permission.
     var statusStorage = await Permission.storage.status;
-
-    var statusManageStorage = await Permission.manageExternalStorage.status;
-
     if (!statusStorage.isGranted) await Permission.storage.request();
 
-    if (!statusManageStorage.isGranted)
-      await Permission.manageExternalStorage.request();
+    // Optional `MANAGE EXTERNAL STORAGE` permission on API 29+.
+    if (useManageExternalStoragePermission) {
+      var statusManageStorage = await Permission.manageExternalStorage.status;
+      if (!statusManageStorage.isGranted)
+        await Permission.manageExternalStorage.request();
+    }
   }
+
+  Future<BackupModel?> pickBackupFile({
+    /// The serialization logic.
+    ///
+    /// The logic will vary from Model class to Model class and must be
+    /// provided on each read-request.
+    required BackupModel Function(String) decode,
+  }) async {
+    FilePickerResult? result;
+
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [fileExtension],
+      );
+    } catch (e) {
+      result = await FilePicker.platform.pickFiles();
+      print("File Extention '$fileExtension' not supported on this device.");
+      print(e);
+      debugPrintStack();
+    }
+
+    if (result != null) {
+      PlatformFile pickedfile = result.files.first;
+
+      print("Picked file cached at: " + pickedfile.path);
+
+      try {
+        final file = await _createLocalFile(pickedfile.path);
+        // Read the file
+        final contents = await file.readAsString();
+        print("Backup found on ${file.path}");
+        return decode(contents);
+      } catch (e) {
+        print(_ErrorMessage);
+        print(e.toString());
+        return null;
+      }
+    } else {
+      // User canceled the picker
+      print("Selecting file aborted");
+    }
+  }
+
+//   /// Reads the backup from the selected location.
+//   ///
+//   /// Returns `null` if the backup has not been found or could not be
+//   /// serialized.
+//   Future<BackupModel?> readBackup({
+//     /// The serialization logic.
+//     ///
+//     /// The logic will vary from Model class to Model class and must be
+//     /// provided on each read-request.
+//     required BackupModel Function(String) decode,
+//   }) async {
+//     print("Reading Backup...");
+//     try {
+//       final file = await _localPickedFile;
+//       // Read the file
+//       final contents = await file.readAsString();
+//       print("Backup found on ${file.path}");
+//       return decode(contents);
+//     } catch (e) {
+//       print(_notFoundErrorMessage);
+//       print(e.toString());
+//       return null;
+//     }
+//   }
 }
