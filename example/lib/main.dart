@@ -54,11 +54,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+  bool _pressedPickFile = false;
+
   TextEditingController _nameInput = TextEditingController(text: '');
   TextEditingController _quoteInput =
       TextEditingController(text: 'If you want to be happy, be.');
 
-  ExampleBackup get exampleBackup {
+  ExampleBackup get _exampleBackup {
     return ExampleBackup(
       name: _nameInput.text,
       quote: _quoteInput.text,
@@ -66,7 +69,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  final BackupStorage backupStorage = BackupStorage(
+  String _formatAsLocalizedDate(BuildContext context, DateTime date) {
+    final TimeOfDay timeOfDay = TimeOfDay.fromDateTime(date);
+    final String dateFormat =
+        MaterialLocalizations.of(context).formatShortDate(date);
+    final String timeFormat = MaterialLocalizations.of(context).formatTimeOfDay(
+      timeOfDay,
+    );
+    return "$dateFormat $timeFormat";
+  }
+
+  void _onPressedPick() {
+    setState(() {
+      _pressedPickFile = !_pressedPickFile;
+    });
+  }
+
+  final BackupStorage _backupStorage = BackupStorage(
     organizationName: "MyOrganization",
     applicationName: "LitBackupService",
     fileName: "examplebackup",
@@ -80,13 +99,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _writeBackup(ExampleBackup backup) async {
     setState(
       () => {
-        backupStorage.writeBackup(backup),
+        _backupStorage.writeBackup(backup),
       },
     );
   }
 
   Future<BackupModel?> _readBackup() {
-    return backupStorage.readBackup(
+    return _backupStorage.readBackup(
       decode: (contents) => ExampleBackup.fromJson(
         jsonDecode(contents),
       ),
@@ -96,13 +115,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _deleteBackup() async {
     setState(
       () => {
-        backupStorage.deleteBackup(),
+        _backupStorage.deleteBackup(),
       },
     );
   }
 
   Future<BackupModel?> _readBackupFromPicker() {
-    return backupStorage.pickBackupFile(
+    return _backupStorage.pickBackupFile(
       decode: (contents) => ExampleBackup.fromJson(
         jsonDecode(contents),
       ),
@@ -110,22 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    backupStorage.requestPermissions().then((value) => setState(() {}));
+    _backupStorage.requestPermissions().then((value) => setState(() {}));
   }
-
-  String formatAsLocalizedDate(BuildContext context, DateTime date) {
-    final TimeOfDay timeOfDay = TimeOfDay.fromDateTime(date);
-    final String dateFormat =
-        MaterialLocalizations.of(context).formatShortDate(date);
-    final String timeFormat = MaterialLocalizations.of(context).formatTimeOfDay(
-      timeOfDay,
-    );
-    return "$dateFormat $timeFormat";
-  }
-
-  int currentIndex = 0;
-
-  bool _pressedPickFile = false;
 
   @override
   void dispose() {
@@ -137,10 +142,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
+        currentIndex: _currentIndex,
         onTap: (selected) {
           setState(() {
-            currentIndex = selected;
+            _currentIndex = selected;
             _pressedPickFile = false;
           });
         },
@@ -160,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.black,
         title: Text("LitBackupService"),
       ),
-      body: currentIndex == 0
+      body: _currentIndex == 0
           ? Scaffold(
               body: Center(
                 child: Padding(
@@ -169,54 +174,50 @@ class _HomeScreenState extends State<HomeScreen> {
                     horizontal: 16.0,
                   ),
                   child: FutureBuilder(
-                      future: backupStorage.hasPermissions(),
-                      builder: (context, AsyncSnapshot<bool> hasPerSnap) {
-                        if (hasPerSnap.connectionState ==
-                                ConnectionState.done &&
-                            hasPerSnap.hasData) {
-                          return hasPerSnap.data!
-                              ? Column(
-                                  children: [
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _pressedPickFile = !_pressedPickFile;
-                                        });
-                                      },
-                                      child: Text(_pressedPickFile
-                                          ? "CLEAR"
-                                          : "PICK BACKUP FILE"),
-                                    ),
-                                    _pressedPickFile
-                                        ? _BackupPreviewBuilder(
-                                            backupStorage: backupStorage,
-                                            formatAsLocalizedDate:
-                                                formatAsLocalizedDate,
-                                            readBackup: _readBackupFromPicker(),
-                                            requestPermissions:
-                                                _requestPermissions,
-                                          )
-                                        : SizedBox(),
-                                  ],
-                                )
-                              : Column(
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
-                                      child: Text(
-                                          "Reading backup from storage denied."),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: _requestPermissions,
-                                      child: Text("Request permissions"),
-                                    ),
-                                  ],
-                                );
-                        }
+                    future: _backupStorage.hasPermissions(),
+                    builder: (context, AsyncSnapshot<bool> hasPerSnap) {
+                      if (hasPerSnap.connectionState == ConnectionState.done &&
+                          hasPerSnap.hasData) {
+                        return hasPerSnap.data!
+                            ? Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: _onPressedPick,
+                                    child: Text(_pressedPickFile
+                                        ? "CLEAR"
+                                        : "PICK BACKUP FILE"),
+                                  ),
+                                  _pressedPickFile
+                                      ? _BackupPreviewBuilder(
+                                          backupStorage: _backupStorage,
+                                          formatAsLocalizedDate:
+                                              _formatAsLocalizedDate,
+                                          readBackup: _readBackupFromPicker(),
+                                          requestPermissions:
+                                              _requestPermissions,
+                                        )
+                                      : SizedBox(),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
+                                    child: Text(
+                                        "Reading backup from storage denied."),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: _requestPermissions,
+                                    child: Text("Request permissions"),
+                                  ),
+                                ],
+                              );
+                      }
 
-                        return CircularProgressIndicator();
-                      }),
+                      return CircularProgressIndicator();
+                    },
+                  ),
                 ),
               ),
             )
@@ -239,18 +240,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           controller: _quoteInput,
                         ),
                         ElevatedButton(
-                          onPressed: () => _writeBackup(exampleBackup),
+                          onPressed: () => _writeBackup(_exampleBackup),
                           child: Text("BACKUP NOW"),
                         ),
                         _BackupPreviewBuilder(
-                          backupStorage: backupStorage,
-                          formatAsLocalizedDate: formatAsLocalizedDate,
+                          backupStorage: _backupStorage,
+                          formatAsLocalizedDate: _formatAsLocalizedDate,
                           readBackup: _readBackup(),
                           requestPermissions: _requestPermissions,
                           showMediaLocation: true,
                         ),
                         FutureBuilder(
-                          future: backupStorage.hasPermissions(),
+                          future: _backupStorage.hasPermissions(),
                           builder: (context, AsyncSnapshot<bool> hasPerSnap) {
                             return hasPerSnap.hasData
                                 ? hasPerSnap.data!
