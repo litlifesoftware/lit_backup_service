@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:lit_backup_service/data/data.dart';
 import 'package:lit_backup_service/model/models.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -47,6 +46,10 @@ class BackupStorage {
   /// https://support.google.com/googleplay/android-developer/answer/9214102#zippy=
   final bool useManageExternalStoragePermission;
 
+  /// The backup file's extension. Defaults to [EXTENSION_JSON].
+  ///
+  /// File extensions allow custom file types and easier filtering when
+  /// filtering for backup files.
   final String fileExtension;
 
   /// The `installationID` is required in order to allow varying file names
@@ -86,8 +89,6 @@ class BackupStorage {
           " " +
           "backup.";
 
-  //String _currentFilePath = "";
-
   /// Retrieves the currently selected `Media` directory on the local device's
   /// file system.
   ///
@@ -123,9 +124,6 @@ class BackupStorage {
 
   /// Creates the backup file.
   Future<File> _createLocalFile(String cachedPath) async {
-    //final mediaPath = await _mediaLocation;
-    //_createStorageDir(mediaPath);
-    //final path = "$mediaPath$organizationName/$applicationName";
     return File(cachedPath);
   }
 
@@ -214,6 +212,11 @@ class BackupStorage {
     }
   }
 
+  /// Shows the platform's native file explorer in order to pick a specific
+  /// backup file.
+  ///
+  /// If the requested [fileExtension] is not supported on the platform, no
+  /// file extension filter will be applied.
   Future<BackupModel?> pickBackupFile({
     /// The serialization logic.
     ///
@@ -224,15 +227,16 @@ class BackupStorage {
     FilePickerResult? result;
 
     try {
+      // Allow extension filtering
       result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: [fileExtension],
       );
     } catch (e) {
+      // Use default
       result = await FilePicker.platform.pickFiles();
       print("File Extention '$fileExtension' not supported on this device.");
       print(e);
-      debugPrintStack();
     }
 
     if (result != null) {
@@ -241,6 +245,7 @@ class BackupStorage {
       print("Picked file cached at: " + pickedfile.path);
 
       try {
+        // Point to the cached backup file location.
         final file = await _createLocalFile(pickedfile.path);
         // Read the file
         final contents = await file.readAsString();
@@ -253,32 +258,7 @@ class BackupStorage {
       }
     } else {
       // User canceled the picker
-      print("Selecting file aborted");
+      print("Selecting file aborted.");
     }
   }
-
-//   /// Reads the backup from the selected location.
-//   ///
-//   /// Returns `null` if the backup has not been found or could not be
-//   /// serialized.
-//   Future<BackupModel?> readBackup({
-//     /// The serialization logic.
-//     ///
-//     /// The logic will vary from Model class to Model class and must be
-//     /// provided on each read-request.
-//     required BackupModel Function(String) decode,
-//   }) async {
-//     print("Reading Backup...");
-//     try {
-//       final file = await _localPickedFile;
-//       // Read the file
-//       final contents = await file.readAsString();
-//       print("Backup found on ${file.path}");
-//       return decode(contents);
-//     } catch (e) {
-//       print(_notFoundErrorMessage);
-//       print(e.toString());
-//       return null;
-//     }
-//   }
 }
