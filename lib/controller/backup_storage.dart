@@ -242,11 +242,16 @@ class BackupStorage {
     if (result != null) {
       PlatformFile pickedfile = result.files.first;
 
-      print("Picked file cached at: " + pickedfile.path);
+      if (pickedfile.path == null) {
+        print("Unable to locate file");
+        return null;
+      }
+
+      print("Picked file cached at: " + pickedfile.path!);
 
       try {
         // Point to the cached backup file location.
-        final file = await _createLocalFile(pickedfile.path);
+        final file = await _createLocalFile(pickedfile.path!);
         // Read the file
         final contents = await file.readAsString();
         print("Backup found on ${file.path}");
