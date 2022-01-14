@@ -3,7 +3,7 @@ description: >-
   A Flutter package to create and restore backups, whose content is stored in a JSON file.
 repository: https://www.github.com/litlifesoftware/lit_backup_service
 issue_tracker: https://github.com/litlifesoftware/lit_backup_service/issues
-version: 1.0.0
+version: 1.0.1
 
 environment:
   sdk: ">=2.12.0 <3.0.0"

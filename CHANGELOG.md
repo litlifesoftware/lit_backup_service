@@ -1,3 +1,10 @@
+## 1.0.1
+
+- Add support for `Android 12`
+- Update `permission_handler` dependency
+- Update `file_picker` dependency
+- Improve null handling
+
 ## 1.0.0
 
 - Add `file_picker` allowing customizable file paths to restore backup from using the `pickBackupFile` method.
