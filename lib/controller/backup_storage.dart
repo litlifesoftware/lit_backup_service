@@ -19,7 +19,7 @@ import 'package:permission_handler/permission_handler.dart';
 /// and a `fileName` of `examplebackup` on the `Documents` media directory would
 /// compound a complete path of
 /// `/storage/emulated/0/Documents/MyOrganization/MyApp/examplebackup.json`.
-///
+
 class BackupStorage {
   /// The application's creator.
   final String organizationName;
@@ -64,6 +64,10 @@ class BackupStorage {
   /// database and update it every time the app has been re-installed.
   final String installationID;
 
+  /// Allows to only use the `applicationName` for directory naming. Ignores
+  /// the provided organization name.
+  final bool useShortDirectoryNaming;
+
   /// Creates a [BackupStorage].
   const BackupStorage({
     required this.organizationName,
@@ -73,6 +77,7 @@ class BackupStorage {
     this.useManageExternalStoragePermission = false,
     this.fileExtension = EXTENSION_JSON,
     required this.installationID,
+    this.useShortDirectoryNaming = false,
   });
 
   static const String _unimplementedErrorMessage =
@@ -88,6 +93,16 @@ class BackupStorage {
           "Try to delete the previous backup file in order to create a updated" +
           " " +
           "backup.";
+
+  /// The expected file system path, where backups should be stored at.
+  ///
+  /// Ignores platform validations.
+  String get expectedBackupPath {
+    if (useShortDirectoryNaming) {
+      return mediaLocation.path + applicationName;
+    }
+    return mediaLocation.path + organizationName + '/' + applicationName;
+  }
 
   /// Retrieves the currently selected `Media` directory on the local device's
   /// file system.
@@ -110,15 +125,21 @@ class BackupStorage {
 
   /// Creates all directories required to store and retrieve backup files.
   void _createStorageDir(String path) async {
-    Directory('$path/$organizationName').create();
-    Directory('$path/$organizationName/$applicationName').create();
+    if (useShortDirectoryNaming) {
+      Directory('$path/$applicationName').create();
+    } else {
+      Directory('$path/$organizationName').create();
+      Directory('$path/$organizationName/$applicationName').create();
+    }
   }
 
   /// Creates the backup file.
   Future<File> get _localFile async {
     final mediaPath = await _mediaLocation;
     _createStorageDir(mediaPath);
-    final path = "$mediaPath$organizationName/$applicationName";
+    final path = useShortDirectoryNaming
+        ? "$mediaPath$applicationName"
+        : "$mediaPath$organizationName/$applicationName";
     return File('$path/$fileName-$installationID.$fileExtension');
   }
 
