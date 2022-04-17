@@ -1,3 +1,8 @@
+## 1.0.2
+
+- Allow shorter directory names using the `useShortDirectoryNaming` flag.
+- Expose the current backup directory using the `expectedBackupPath` getter.
+
 ## 1.0.1
 
 - Add support for `Android 12`
