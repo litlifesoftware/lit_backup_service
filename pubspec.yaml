@@ -13,8 +13,8 @@ dependencies:
   flutter:
     sdk: flutter
   
-  permission_handler: ^8.3.0
-  file_picker: ^4.3.1
+  permission_handler: ^10.1.0
+  file_picker: ^5.2.0+1
 
 dev_dependencies:
 
