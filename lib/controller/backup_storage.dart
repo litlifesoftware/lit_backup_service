@@ -126,10 +126,18 @@ class BackupStorage {
   /// Creates all directories required to store and retrieve backup files.
   void _createStorageDir(String path) async {
     if (useShortDirectoryNaming) {
-      Directory('$path/$applicationName').create();
+      try {
+        Directory('$path/$applicationName').create();
+      } catch (e) {
+        print(e);
+      }
     } else {
-      Directory('$path/$organizationName').create();
-      Directory('$path/$organizationName/$applicationName').create();
+      try {
+        Directory('$path/$organizationName').create();
+        Directory('$path/$organizationName/$applicationName').create();
+      } catch (e) {
+        print(e);
+      }
     }
   }
 
