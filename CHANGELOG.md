@@ -1,3 +1,7 @@
+## 1.0.3
+
+- Improve error handling when creating directories
+
 ## 1.0.2
 
 - Allow shorter directory names using the `useShortDirectoryNaming` flag.
